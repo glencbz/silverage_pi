@@ -44,7 +44,7 @@ class DisplayObject extends React.Component {
   render(){
     var cm = this.object.centerOfMass();
     var coords = cm.map(d => d * 35 / 11 + 'em');
-    var diam = _.clamp(1 + this.object.spread() * 2, 6) * 35 / 11;
+    var diam = _.clamp(0.5 + this.object.spread() * 2, 2) * 35 / 11;
     var style = {
       position: "absolute",
       top: "calc(" + coords[0] + " - " + (diam / 2) + "em)",
@@ -55,7 +55,7 @@ class DisplayObject extends React.Component {
       backgroundColor: objCol([240, this.object.reading.weight, this.object.reading.weight, 0.7]),
     }
     return (
-      <div style={style}>
+      <div className="grid-object" style={style}>
       </div>
     );
   }
@@ -92,8 +92,7 @@ class SensorGrid extends React.Component {
     console.log('grid state', this.state);
     var displayObjects = this.state.objects.map((o,i) => <DisplayObject 
       object={o} 
-      key={o.reading.weight + o.centerOfMass()}
-      className="grid-object"/>);
+      key={o.reading.weight + o.centerOfMass()}/>);
     return (
       <div className="sensor-grid">
         {displayObjects}

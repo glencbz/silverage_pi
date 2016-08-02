@@ -16,7 +16,7 @@ import _ from 'lodash';
 import Heap from 'heap';
 import {sensorDims as sd} from './sensorDims';
 
-const sensorDims = [sd.width, sd.height];
+const sensorDims = [sd.height, sd.width];
 
 function timeQueue(){
   return new Heap((a,b) =>{
@@ -94,6 +94,7 @@ class SensorReading{
   static createNewReadingArray(){
     return _.chunk(_.times(sensorDims[0] * sensorDims[1], _.constant(0)), sensorDims[1]);
   }
+
   constructor(readings){
     if (!readings)
       this.readings = SensorReading.createNewReadingArray();
@@ -111,11 +112,14 @@ class SensorReading{
     return new SensorReading(newAvg);
   }
 
-  diffReading(otherReading){
+  diffReading(otherReading, clamp){
     var diff = SensorReading.createNewReadingArray();
-    for (var i = 0; i < sensorDims[0]; i ++)
-      for (var j = 0; j < sensorDims[1]; j++)
-        diff[i][j] = this.readings[i][j] - otherReading.readings[i][j];
+    for (var i = 0; i < sensorDims[0]; i ++){
+      for (var j = 0; j < sensorDims[1]; j++){
+        var cellDiff = this.readings[i][j] - otherReading.readings[i][j];
+        diff[i][j] = clamp ? _.clamp(cellDiff, 0, 255): cellDiff;
+      }
+    }
     return new SensorReading(diff);
   }
 
@@ -153,10 +157,10 @@ class SensorReading{
 }
 
 class TestCycle{
-  constructor(initialReading){
+  constructor(initialReading, numTestCycles=20){
     this.testingAvg = initialReading,
     this.testingCount = 1,
-    this.numTestCycles = 5;
+    this.numTestCycles = numTestCycles;
   }
 
   test(newReading){
@@ -174,16 +178,42 @@ class TestCycle{
 
 class ObjectLogger {
   constructor(socket){
-    this.newObjectThreshold = 20,
-    this.similarObjectThreshold = 20,
+    this.newObjectThreshold = 140,
+    this.deleteObjectThreshold = 80,
     this.readingCount = 0,
     this.avgReading = SensorReading.createNewReading(),
     this.testCycle = undefined,
     this.socket = socket,
     this.objects = new Set();
+    this.baseline;
+  }
+
+  calibrateValues(newReading){
+    if(!this.calibrationTest){
+      this.calibrationTest = new TestCycle(newReading, 100);
+      return;
+    }
+    console.log(this.calibrationTest)
+    var result = this.calibrationTest.test(newReading);
+    if (result)
+      this.baseline = result;
   }
 
   updateValues(newReading, callback){
+
+    /////////////////////
+    ///Sensor calibration
+    if (!this.baseline){
+      this.calibrateValues(newReading);
+      return;
+    } else{
+      console.log('before diff baseline', newReading);
+      newReading = newReading.diffReading(this.baseline, true);
+      console.log('after diff baseline', newReading);
+      console.log('baseline', this.baseline);
+    }
+    /////////////////////
+
     // if not currently testing for a new object
     if (!this.testCycle){
       // if the difference in readings is less than the threshold for a new object
@@ -204,12 +234,6 @@ class ObjectLogger {
     callback(newReading, Array.from(this.objects));
   }
   
-  // updateThresholds(){
-  //   var newThreshold = _.sum(Array.from(this.objects).map(x => x.reading.weight)) * .15;
-  //   this.newObjectThreshold = newThreshold;
-  //   this.similarObjectThreshold = newThreshold;
-  // }
-
   updateObjects(testResult){
     if (!testResult)
       return undefined;
@@ -225,10 +249,11 @@ class ObjectLogger {
 
     if (diffMagnitude > this.newObjectThreshold){
       var newObject = new LogObject(diffResult);
+      console.log('new object', diffMagnitude, newObject.reading.weight);
       this.addObject(newObject);
     }
 
-    else if (diffMagnitude < -this.similarObjectThreshold){
+    else if (diffMagnitude < -this.deleteObjectThreshold){
       this.testDeleteObject(diffResult);
     }
 
@@ -252,8 +277,9 @@ class ObjectLogger {
     
     console.log("best object score", objectDiffs[bestObjectInd]);
     
-    if (objectDiffs[bestObjectInd] <= this.newObjectThreshold)
-      this.deleteObject(objectsArray[bestObjectInd]);
+    // LOOK BACK HERE THIS MAY COME BACK
+    // if (objectDiffs[bestObjectInd] <= this.newObjectThreshold)
+    this.deleteObject(objectsArray[bestObjectInd]);
   }
 
   deleteObject(toDelete){

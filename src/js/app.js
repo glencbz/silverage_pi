@@ -16,6 +16,10 @@ function flatIndex(array, i, j){
   return i * array[i].length + j;
 }
 
+function isValidReading(dataArray){
+  return dataArray.map(d => d.length).reduce((x,y) => x + y) == sensorDims.width * sensorDims.height;
+}
+
 var socket = io.connect(window.location.href);
 var lastRequest;
 
@@ -32,6 +36,8 @@ function newArdData(data){
   objectLog.updateValues(data, (reading, objectArr) =>{
     grid.updateReading.bind(grid)(reading, objectArr);
     objectList.updateObjects.bind(objectList)(objectArr);
+    console.log("new chart data", readingCount, reading);
+    addData(reading.weight);
   });
 }
 
@@ -50,23 +56,22 @@ main.addEventListener('touchstart', ()=>{
 });
 
 var readingCount = 0;
+var validCount = 0;
 
 // arduino parsing function
 socket.on('ard', function (data) {
-  console.log("counts", readingCount);
-  readingCount++;
+  console.log("counts", readingCount++);
+  console.log("raw data", data);
   var dataArray = JSON.parse(data);
-  console.log("data", data, dataArray);
+
+  if (!isValidReading(dataArray))
+    return;
+  console.log("valid counts", validCount++);
+
+  // console.log("arduino data", dataArray.map(d => d.length).reduce((x,y) => x + y), dataArray);
   var newReading = new SensorReading(dataArray);
   console.log('reading', newReading);
   if (isNaN(newReading.weight))
       return;
   newArdData(newReading);
-  console.log("new chart data", readingCount, newReading);
-  addData(newReading.weight);
 });
-
-
-
-
-

@@ -1,4 +1,5 @@
 import React from 'react';
+import _ from 'lodash';
 import {objCol as hslFromArray} from './hslFromArray';
 
 function latestUrl(fileName){
@@ -34,7 +35,6 @@ class ObjectRow extends React.Component {
 	constructor(props) {
 		super(props);
 		this.displayName = 'ObjectRow';
-		this.location = this.props.location;
 		this.fileName = latestUrl(this.props.fileName);
 	}
 
@@ -49,10 +49,10 @@ class ObjectRow extends React.Component {
 				<div className='media-content'>
 					<div className='content'>
 						<div className='weight-wrapper'>
-							<h3 className='weight-header'>{"Weight: " + this.props.object.reading.weight}</h3>
+							<h3 className='weight-header'>{"Weight: " + _.round(this.props.object.reading.weight, 2)}</h3>
 							<div className='weight-marker' style={{backgroundColor: weightColor}}/>
 						</div>
-  						<p>{"Location: " + this.props.object.centerOfMass().join()}</p>
+  						<p>{"Location: " + this.props.object.centerOfMass().map(d => _.round(d,2)).join()}</p>
 					</div>
 				</div>
 				<div className='media-right'>

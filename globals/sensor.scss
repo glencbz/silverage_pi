@@ -68,6 +68,7 @@ body{
 
 .right-tile{
   .is-child{
+    min-height: 0;
     height: calc(50% - 10px);
     width: 100%;
     padding: 1em;
